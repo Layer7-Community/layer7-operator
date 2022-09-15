@@ -1,0 +1,8 @@
+{
+    "auths": {
+      "harbor.sutraone.com": {
+        "username": "robot$prodrobot",
+        "password": "QinE3M4gcLS6UFvQC9hXrdrrRfJJet24"
+      }
+    }
+  }

@@ -1,0 +1,25 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- security_v1_gateway.yaml
+- serviceaccount.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
+generatorOptions:
+ disableNameSuffixHash: true
+secretGenerator:
+- name: gateway-license
+  files:
+  - license.xml
+- name: gateway-secret
+  env: secret.env
+# Create a secret for the Ingress Resource
+# - name: brcmlabs
+#   files:
+#   - tls.crt
+#   - tls.key
+#   type: "kubernetes.io/tls"
+# This is here intentionally as an example
+# This repo contains Gateway 10.1.00 and the git bundle initContainer
+# - name: harbor-reg-cred
+#   type: kubernetes.io/dockerconfigjson
+#   files:
+#   - .dockerconfigjson
