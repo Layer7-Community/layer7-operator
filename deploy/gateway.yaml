@@ -1,0 +1,174 @@
+apiVersion: security.brcmlabs.com/v1
+kind: Gateway
+metadata:
+  name: ssg
+spec:
+  app:
+    autoscaling:
+      enabled: true
+      hpa:
+        behavior:
+          scaleDown:
+            policies:
+            - periodSeconds: 60
+              type: Pods
+              value: 1
+            stabilizationWindowSeconds: 300
+          scaleUp:
+            policies:
+            - periodSeconds: 15
+              type: Percent
+              value: 100
+            stabilizationWindowSeconds: 0
+        maxReplicas: 3
+        metrics:
+        - resource:
+            name: cpu
+            target:
+              averageUtilization: 60
+              type: Utilization
+          type: Resource
+        minReplicas: 1
+    cwp:
+      enabled: false
+      properties:
+      - name: io.httpsHostAllowWildcard
+        value: true
+      - name: log.levels
+        value: |
+          com.l7tech.level = CONFIG
+          com.l7tech.server.policy.variable.ServerVariables.level = SEVERE
+          com.l7tech.external.assertions.odata.server.producer.jdbc.GenerateSqlQuery.level = SEVERE
+          com.l7tech.server.policy.assertion.ServerSetVariableAssertion.level = SEVERE
+          com.l7tech.external.assertions.comparison.server.ServerComparisonAssertion = SEVERE
+      - name: audit.setDetailLevel.FINE
+        value: 152 7101 7103 9648 9645 7026 7027 4155 150 4716 4114 6306 4100 9655 150 151 11000 4104
+    hazelcast:
+      endpoint: hazelcast.example.com:5701
+      external: false
+    image: docker.io/caapim/gateway:10.1.00
+    imagePullPolicy: IfNotPresent
+    imagePullSecrets: []
+    ingress:
+      annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+      enabled: true
+      ingressClassName: nginx
+      rules:
+      - host: gateway.brcmlabs.com
+      - host: test1.example.com
+      tls:
+      - hosts:
+        - gateway.brcmlabs.com
+        secretName: brcmlabs
+      - hosts:
+        - test.example.com
+        secretName: default
+    initContainers: []
+    java:
+      extraArgs:
+      - -Dcom.l7tech.bootstrap.autoTrustSslKey=trustAnchor,TrustedFor.SSL,TrustedFor.SAML_ISSUER
+      - -Dcom.l7tech.server.audit.message.saveToInternal=false
+      - -Dcom.l7tech.server.audit.admin.saveToInternal=false
+      - -Dcom.l7tech.server.audit.system.saveToInternal=false
+      - -Dcom.l7tech.server.audit.log.format=json
+      - -Djava.util.logging.config.file=/opt/SecureSpan/Gateway/node/default/etc/conf/log-override.properties
+      - -Dcom.l7tech.server.pkix.useDefaultTrustAnchors=true -Dcom.l7tech.security.ssl.hostAllowWildcard=true
+      jvmHeap: 2g
+    listenPorts:
+      cipherSuites:
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+      - TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+      - TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+      - TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+      - TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+      - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+      - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+      - TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+      - TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+      - TLS_DHE_RSA_WITH_AES_128_CBC_SHA
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      harden: false
+      tlsVersions:
+      - TLSv1.2
+      - TLSv1.3
+    management:
+      cluster:
+        hostname: gateway.brcmlabs.com
+      database:
+        enabled: false
+      graphman:
+        enabled: false
+      restman:
+        enabled: false
+      secretName: gateway-secret
+      service:
+        enabled: true
+        ports:
+        - name: management
+          port: 9443
+          protocol: TCP
+          targetPort: 9443
+        type: ClusterIP
+    replicas: 1
+    repository:
+      bundleDirectory: bundles
+      enabled: false
+      init:
+        image: docker.io/layer7api/bundle-init:0.0.1
+        imagePullPolicy: Always
+        name: bundle-init
+        volumeMounts:
+        - mountPath: /opt/SecureSpan/Gateway/node/default/etc/bootstrap/bundle/initBundles
+          name: git
+      method: init
+      name: gateway-bundles
+      url: https://github.com/Layer7-Community/l7bundlerepo
+    resources:
+      limits:
+        cpu: 2
+        memory: 4Gi
+      requests:
+        cpu: 2
+        memory: 4Gi
+    service:
+      ports:
+      - name: https
+        port: 8443
+        protocol: TCP
+        targetPort: 8443
+      type: ClusterIP
+    serviceAccountName: default
+    system:
+      properties: |-
+        # Default Gateway system properties
+        # Configuration properties for shared state extensions.
+        com.l7tech.server.extension.sharedKeyValueStoreProvider=embeddedhazelcast
+        com.l7tech.server.extension.sharedCounterProvider=ssgdb
+        com.l7tech.server.extension.sharedClusterInfoProvider=ssgdb
+        # By default, FIPS module will block an RSA modulus from being used for encryption if it has been used for
+        # signing, or visa-versa. Set true to disable this default behaviour and remain backwards compatible.
+        com.safelogic.cryptocomply.rsa.allow_multi_use=true
+        # Specifies the type of Trust Store (JKS/PKCS12) provided by AdoptOpenJDK that is used by Gateway.
+        # Must be set correctly when Gateway is running in FIPS mode. If not specified it will default to PKCS12.
+        javax.net.ssl.trustStoreType=jks
+        com.l7tech.server.clusterStaleNodeCleanupTimeoutSeconds=86400
+        # Additional properties go here
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 2
+        maxUnavailable: 0
+      type: rollingUpdate
+  license:
+    accept: "true"
+    secretName: gateway-license
+  version: 10.1.00
